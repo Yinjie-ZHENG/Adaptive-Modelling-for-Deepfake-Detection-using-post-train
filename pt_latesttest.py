@@ -366,11 +366,11 @@ neighbour_acc = 0
 pgd_loss_rep = AverageMeter()
 pgd_acc_rep = AverageMeter()
 
-pgd_acc_post_rep = AverageMeter()
-normal_loss_rep = AverageMeter()
-normal_acc_rep = AverageMeter()
-normal_loss_post_rep = AverageMeter()
-normal_acc_post_rep = AverageMeter()
+base_normal_acc = AverageMeter()
+base_robust_acc = AverageMeter()
+post_normal_acc = AverageMeter()
+post_robust_acc = AverageMeter()
+
 
 
 n = 0
@@ -380,15 +380,33 @@ for i, (X, y) in enumerate(test_loader):
     n += y.size(0)
     X, y = X.cuda(), y.cuda()
     logger.info("\n")
+
+    if data_config.test_on_data == "fgsm":
+        attack = torchattacks.FGSM(model, eps=2/255)
+        adv_images = attack(X, y)
+        adv_images = adv_images.cuda()
+
+
+
+
+
     # evaluate base model
     with torch.no_grad():
         output = model(X)
         softmax_output = softmax(output, dim=-1).data
         acc_top1 = accuracy2(softmax(output, dim=-1).data, y) #softmax(output, dim=-1)是predicted
-        pgd_acc_rep.update(acc_top1[0].item(), y.size(0))
-        logger.info('Batch {}\tbase model acc: {:.4f}'.format(i + 1, pgd_acc_rep.avg))
-        logger.info('Batch {}\toutput:{},y:{}'.format(i + 1, softmax(output, dim=-1).data, y))
+        base_normal_acc.update(acc_top1[0].item(), y.size(0))
+        logger.info('Batch {}\tbase model normal acc: {:.4f}'.format(i + 1, base_normal_acc.avg))
+        #logger.info('Batch {}\toutput:{},y:{}'.format(i + 1, softmax(output, dim=-1).data, y))
 
+    # evaluate base model
+    with torch.no_grad():
+        output = model(adv_images)
+        softmax_output = softmax(output, dim=-1).data
+        acc_top1 = accuracy2(softmax(output, dim=-1).data, y) #softmax(output, dim=-1)是predicted
+        base_robust_acc.update(acc_top1[0].item(), y.size(0))
+        logger.info('Batch {}\tbase model robust acc: {:.4f}'.format(i + 1, base_robust_acc.avg))
+        #logger.info('Batch {}\toutput:{},y:{}'.format(i + 1, softmax(output, dim=-1).data, y))
 
     # evaluate post model
     with torch.no_grad():
@@ -400,11 +418,24 @@ for i, (X, y) in enumerate(test_loader):
         #在此时post_model居然是training mode,请改正
         post_model.eval()
         output = post_model(X)
-        pgd_acc_post += (output.max(1)[1] == y).sum().item()
-        logger.info('Batch {}\tadv acc (post): {:.4f}'.format(i + 1, pgd_acc_post / n))
+        #pgd_acc_post += (output.max(1)[1] == y).sum().item()
+        #logger.info('Batch {}\tadv acc (post): {:.4f}'.format(i + 1, pgd_acc_post / n))
         acc_top1 = accuracy2(softmax(output, dim=-1).data, y) #softmax(output, dim=-1)是predicted
-        pgd_acc_post_rep.update(acc_top1[0].item(), y.size(0))
-        logger.info('Batch {}\tbase acc_rep: {:.4f}'.format(i + 1, pgd_acc_post_rep.avg))
-        logger.info('Batch {}\tpostoutput:{},y:{}'.format(i + 1, softmax(output, dim=-1).data, y))
+        post_normal_acc.update(acc_top1[0].item(), y.size(0))
+        logger.info('Batch {}\tpost model normal acc: {:.4f}'.format(i + 1, post_normal_acc.avg))
+        #logger.info('Batch {}\tpostoutput:{},y:{}'.format(i + 1, softmax(output, dim=-1).data, y))
+    # evaluate post model
+    with torch.no_grad():
 
+        post_model, original_class, neighbour_class, _, _ = post_train(model, adv_images, train_loader,
+                                                                          train_loaders_by_class, data_config, softmax_output)
+
+        # evaluate prediction acc
+        #在此时post_model居然是training mode,请改正
+        post_model.eval()
+        output = post_model(adv_images)
+        acc_top1 = accuracy2(softmax(output, dim=-1).data, y) #softmax(output, dim=-1)是predicted
+        post_robust_acc.update(acc_top1[0].item(), y.size(0))
+        logger.info('Batch {}\tpost model robust acc: {:.4f}'.format(i + 1, post_robust_acc.avg))
+        #logger.info('Batch {}\tpostoutput:{},y:{}'.format(i + 1, softmax(output, dim=-1).data, y))
 print("done")
