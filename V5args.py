@@ -8,13 +8,17 @@ from models.SiameseNetwork.PostTrainNet import PostTrainNet_xception, Xception_l
 
 
 class data_config:
+    '''***********- Test data settings-*************'''
+    test_on_data = "fgsm" #“normal”
+
     '''***********- Post Train Arguments-*************'''
-    pt_setting = "near_boundary" #"default"
+
+    pt_setting = "default"#"near_boundary" #"default"
     #data used for pt
     pt_data = "balanced_train" #"balanced_train"; "train" "num_nearest_cosine" #"num_nearest_searchsim" #num_nearest,ori_neigh, ori_rand, train
     pt_searchsim_thread = 0.90
     #attack on pt_data, 也就是对pt_data采用什么attack,attack之后就是对抗样本
-    pt_method = "pgd" #”normal“对应无attack; "deepfool"对应deepfool攻击; "pgd"对应pgd攻击；
+    pt_method = "deepfool" #”normal“对应无attack; "deepfool"对应deepfool攻击; "pgd"对应pgd攻击；
     search_by = "dist_search" #"num_search","dist_search"，”“
     measurement = "cosine_normalized"#"cosine","cosine_normalized"
     # 一次post_train经历几次iter
@@ -80,7 +84,7 @@ class data_config:
 
     is_freeze = False
     model_arch = PostTrainNet_xception(load_from_pkl, freeze=is_freeze)#Xception_loaded(load_from_pkl) #
-    model_save_name = "PostTrainNet_V2_boundary_nofreeze"#"PostTrainNet_Deepfool_boundary"#"PostTrainNet_nofreeze_nobalanceddata_noattack"#""#"PostTrainNet_xception_pretrained_lr001bz32"
+    model_save_name = "debugging"#"PostTrainNet_V2_boundary_nofreeze"#"PostTrainNet_Deepfool_boundary"#"PostTrainNet_nofreeze_nobalanceddata_noattack"#""#"PostTrainNet_xception_pretrained_lr001bz32"
     model_save_time = time.strftime("%Y-%m-%d_%H:%M:%S", time.localtime())
     writer_log = model_save_name+"_"+model_save_time
     #具体到文件,load_from_pkl加载经过自己代码得到的模型dict,load_from_pth加载别人的模型权重用load_state_dict
